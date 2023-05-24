@@ -16,16 +16,15 @@ import geojson
 import torch
 import torchvision
 
-from segment_anything import sam_model_registry, SamPredictor
+from segment_anything import sam_model_registry, SamPredictor, SamAutomaticMaskGenerator
 
 from PIL import Image
 
 import plotly.express as px
 import plotly.graph_objects as go
 
-from dash import dcc, ctx
+from dash import dcc, ctx, exceptions
 import dash_bootstrap_components as dbc
-import dash_cytoscape as cyto
 import dash_leaflet as dl
 
 from dash_extensions.enrich import html, DashProxy
@@ -75,7 +74,10 @@ def gen_layout():
                     children = [
                         dbc.CardBody([
                             dbc.Row([
-                                
+                                dbc.Button(
+                                    'Predict All',
+                                    id = 'predict-all'
+                                )
                             ])
                         ])
                     ]
@@ -92,17 +94,38 @@ class SingleImageTest:
     def __init__(self,
                  app,
                  layout,
-                 predictor):
+                 predictor,
+                 mask_generator,
+                 current_image):
     
         self.app = app
         self.app.layout = layout
         self.predictor = predictor
-
+        self.mask_generator = mask_generator
+        self.current_image = current_image
 
         self.app.callback(
             Output('current-image','figure'),
-            Input('current-image','clickData')
-        )(self.predict_from_point)
+            [Input('current-image','clickData'),
+             Input('predict-all','n_clicks')],
+             prevent_initial_call=True
+        )(self.predict)
+
+    def predict(self,click_coords,butt_click):
+
+        if ctx.triggered_id=='current-image':
+
+            new_image = self.predict_from_point(click_coords)
+        
+        elif ctx.triggered_id =='predict-all':
+
+            new_image = self.predict_all_regions()
+        
+        else:
+            print(f'Bad triggered_id: {ctx.triggered_id}')
+            raise exceptions.PreventUpdate
+
+        return new_image
 
 
     def predict_from_point(self,click_coords):
@@ -122,6 +145,20 @@ class SingleImageTest:
             print(f'scores: {scores}')
             print(f'logits: {logits}')
 
+            return 
+        
+        else:
+            raise exceptions.PreventUpdate
+    
+    def predict_all_regions(self):
+
+        masks = self.mask_generator(self.current_image)
+
+        print(f'shape of masks: {np.shape(masks)}')
+
+
+        return 
+
             
 
 
@@ -140,12 +177,13 @@ def main():
     sam.to(device=device)
 
     predictor = SamPredictor(sam)
+    mask_generator = SamAutomaticMaskGenerator(sam)
 
     ex_image = np.array(Image.open('./examples/ex_img.png'))
     predictor.set_image(ex_image)
 
 
-    sam_app = SingleImageTest(main_app,main_layout,predictor)
+    sam_app = SingleImageTest(main_app,main_layout,predictor,mask_generator)
 
 
 if __name__=='__main__':
