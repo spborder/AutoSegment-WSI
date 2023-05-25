@@ -191,7 +191,6 @@ class SingleImageTest:
             print(f'masks shape is zero')
             return self.current_image
         
-
     def generate_mask(self,mask):
         zero_mask = np.where(np.sum(mask,axis=-1)==0,0,128)[:,:,None]
         
@@ -222,11 +221,6 @@ def main():
 
     ex_image = np.uint8(np.array(Image.open('./examples/ex_img.PNG')))[:,:,0:3]
     print(f'shape of ex_image: {np.shape(ex_image)}')
-    # Getting it into the size that SAM expects
-    #ex_image = ResizeLongestSide(1024).apply_image(ex_image)
-    #print(f'Shape of processed image: {np.shape(ex_image)}')
-    #ex_image = np.moveaxis(ex_image,source=-1,destination=0)[None,:,:,:]
-    #print(f'Shape of batched and channels first image: {np.shape(ex_image)}')
     predictor.set_image(ex_image)
 
 
